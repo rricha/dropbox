@@ -8,6 +8,7 @@ const Hapi = require('hapi');
 const asyncHandlerPlugin = require('hapi-async-handler');
 const nssocket = require('nssocket');
 const chokidar = require('chokidar');
+const mime = require('mime-types');
 
 const argv = require('yargs').argv;
 
@@ -87,8 +88,14 @@ watcher
   })
   .on('error', error => {
     console.log(`Watcher error: ${error}`)
-  })
-;
+  });
+
+/* function setHeaders(response, filePath, data) {
+  const mimeType = mime.lookup(filePath);
+  console.log(`mimetype : ${mimeType}`);
+  response.header('Content-Length', data.length)
+  .header('Content-Type', mimeType);
+}*/
 
 async function readHandler(request, reply) {
   const filePath = getLocalFilePathFromRequest(request);
@@ -100,7 +107,8 @@ async function readHandler(request, reply) {
     reply(JSON.stringify(files));
   } else {
     const data = await readFile(filePath);
-    reply(data);
+    reply(data).header('Content-Length', data.length)
+      .header('Content-Type', mime.lookup(filePath));
 //  const data = await cat(filePath);
 //  reply(data);
   }
@@ -155,7 +163,7 @@ async function main() {
   const port = process.env.port || 8000;
   const server = new Hapi.Server({
     debug: {
-      request: ['errors']
+      request: ['error']
     }
   });
 
@@ -166,7 +174,7 @@ async function main() {
   tcpServer.listen(8001);
 
   server.register(asyncHandlerPlugin);
-  server.connection({ port });
+  server.connection({port});
 
   server.on('request-error', (request, err) => {
     console.log(err)
